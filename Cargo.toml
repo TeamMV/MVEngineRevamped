@@ -1,0 +1,38 @@
+[package]
+name = "mvengine"
+version = "0.1.0"
+edition = "2021"
+
+[[test]]
+name = "test"
+path = "tests/main.rs"
+harness = false
+
+[dependencies]
+# proc macros
+mvengine-proc-macro = { path = "./Proc", version = "1.0.0" }
+
+# mvteam dependencies
+mvutils = "1.1.7"
+mvsync = "1.1.4"
+mvlogger = "0.3.0"
+
+# general dependencies
+bytebuffer = "2.2.0"
+itertools = "0.14.0"
+log = "0.4.20"
+num-traits = "0.2.17"
+hashbrown = "0.15.1"
+bitflags = "2.5.0"
+parking_lot = "0.12.1"
+crossbeam-channel = "0.5.12"
+ahash = "0.8.11"
+rand = "0.9.0"
+include_dir = "0.7.3"
+
+# rendering
+openal = "0.2.2"
+image = "0.25.0"
+#winit = "0.30.8"
+gl = "0.14.0"
+servo-glutin = "0.15.0"
