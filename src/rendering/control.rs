@@ -3,6 +3,7 @@ use crate::rendering::batch::RenderBatch;
 use crate::rendering::shader::OpenGLShader;
 use crate::rendering::{PrimitiveRenderer, Quad, Triangle};
 use crate::rendering::camera::OrthographicCamera;
+use crate::rendering::post::RenderTarget;
 use crate::window::Window;
 
 pub struct RenderController {
@@ -62,5 +63,17 @@ impl RenderController {
             }
         }
         self.batch_index = 0;
+    }
+
+    pub fn draw_to_target(&mut self, window: &Window, camera: &OrthographicCamera, renderer: &mut impl PrimitiveRenderer, shader: &mut OpenGLShader) -> RenderTarget {
+        shader.use_program();
+        let mut render_target = RenderTarget { texture: 0, framebuffer: 0 };
+        for batch in &mut self.batches {
+            if !batch.is_empty() {
+                batch.draw_to_target(window, camera, renderer, shader, &mut render_target);
+            }
+        }
+        self.batch_index = 0;
+        render_target
     }
 }

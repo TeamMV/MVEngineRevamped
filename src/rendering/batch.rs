@@ -1,8 +1,9 @@
-use gl::types::GLuint;
-use crate::rendering::{PrimitiveRenderer, Quad, Triangle, Vertex};
 use crate::rendering::camera::OrthographicCamera;
+use crate::rendering::post::RenderTarget;
 use crate::rendering::shader::OpenGLShader;
+use crate::rendering::{PrimitiveRenderer, Quad, Triangle, Vertex};
 use crate::window::Window;
+use gl::types::GLuint;
 
 pub const BATCH_VERTEX_AMOUNT: usize = 1_000;
 
@@ -160,6 +161,22 @@ impl RenderBatch {
             self.ibo_id,
             self.triangle_index as u32 * 3,
             shader
+        );
+        self.prepare_batch();
+    }
+
+    pub fn draw_to_target(&mut self, window: &Window, camera: &OrthographicCamera, renderer: &mut impl PrimitiveRenderer, shader: &mut OpenGLShader, post: &mut RenderTarget) {
+        renderer.draw_data_to_target(
+            window,
+            camera,
+            &self.vertex_data,
+            &self.index_data,
+            &self.texture_data,
+            self.vbo_id,
+            self.ibo_id,
+            self.triangle_index as u32 * 3,
+            shader,
+            post
         );
         self.prepare_batch();
     }

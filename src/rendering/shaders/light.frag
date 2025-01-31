@@ -8,7 +8,7 @@ layout (location = 2) in float fTex;
 layout (location = 3) in vec2 fRes;
 layout (location = 4) in vec3 fFragPos;
 
-out vec4 outColor;
+layout(location = 0) out vec4 outColor;
 
 struct Light {
     vec2 pos;

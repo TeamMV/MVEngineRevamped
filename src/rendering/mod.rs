@@ -1,16 +1,13 @@
-use crate::color::RgbColor;
-use crate::rendering::batch::RenderBatch;
-use crate::window::Window;
-use gl::types::{GLint, GLsizei, GLsizeiptr, GLuint};
-use std::ffi::CString;
-use std::mem::offset_of;
-use std::num::NonZeroU32;
-use std::os::raw::c_void;
-use std::ptr::null;
-use std::str::FromStr;
 use crate::math::vec::{Vec2, Vec4};
 use crate::rendering::camera::OrthographicCamera;
 use crate::rendering::shader::OpenGLShader;
+use crate::window::Window;
+use gl::types::{GLsizei, GLsizeiptr, GLuint};
+use std::mem::offset_of;
+use std::os::raw::c_void;
+use std::ptr::null;
+use std::str::FromStr;
+use crate::rendering::post::{OpenGLPostProcessRenderer, RenderTarget};
 
 pub mod batch;
 pub mod texture;
@@ -18,6 +15,7 @@ pub mod shader;
 pub mod camera;
 pub mod control;
 pub mod light;
+pub mod post;
 
 #[repr(C)]
 #[derive(Clone)]
@@ -74,6 +72,7 @@ pub struct Quad {
 
 pub trait PrimitiveRenderer {
     fn draw_data(&mut self, window: &Window, camera: &OrthographicCamera, vertices: &[u8], indices: &[u32], textures: &[f32], vbo: GLuint, ibo: GLuint, amount: u32, shader: &mut OpenGLShader);
+    fn draw_data_to_target(&mut self, window: &Window, camera: &OrthographicCamera, vertices: &[u8], indices: &[u32], textures: &[f32], vbo: GLuint, ibo: GLuint, amount: u32, shader: &mut OpenGLShader, post: &mut RenderTarget);
 }
 
 pub struct OpenGLRenderer;
@@ -95,7 +94,9 @@ impl PrimitiveRenderer for OpenGLRenderer {
             gl::BufferData(gl::ARRAY_BUFFER, vertices.len() as GLsizeiptr, vertices.as_ptr() as *const _, gl::DYNAMIC_DRAW);
 
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ibo);
-            gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, indices.len() as GLsizeiptr, indices.as_ptr() as *const _, gl::DYNAMIC_DRAW);
+            gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, indices.len() as GLsizeiptr * 4, indices.as_ptr() as *const _, gl::DYNAMIC_DRAW);
+
+            gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
 
             shader.uniform_1f("uResX", window.info.width as f32);
             shader.uniform_1f("uResY", window.info.height as f32);
@@ -132,6 +133,10 @@ impl PrimitiveRenderer for OpenGLRenderer {
             gl::BindBuffer(gl::ARRAY_BUFFER, 0);
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0);
         }
+    }
+
+    fn draw_data_to_target(&mut self, window: &Window, camera: &OrthographicCamera, vertices: &[u8], indices: &[u32], textures: &[f32], vbo: GLuint, ibo: GLuint, amount: u32, shader: &mut OpenGLShader, post: &mut RenderTarget) {
+        todo!()
     }
 }
 

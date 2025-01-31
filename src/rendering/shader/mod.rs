@@ -196,7 +196,7 @@ impl OpenGLShader {
     }
 
     pub(crate) fn uniform_1fv(&self, name: &str, values: &[f32]) {
-        let location = unsafe { gl::GetUniformLocation(self.program_id, name.as_ptr() as *const i8) };
+        let location = unsafe { gl::GetUniformLocation(self.program_id, CString::new(name).unwrap().as_ptr()) };
         if location != -1 {
             unsafe {
                 gl::Uniform1fv(location, values.len() as i32, values.as_ptr());

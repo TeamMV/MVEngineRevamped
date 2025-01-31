@@ -12,6 +12,8 @@ use mvengine::window::app::WindowCallbacks;
 use mvengine::window::{UninitializedWindow, Window, WindowCreateInfo};
 use mvutils::once::CreateOnce;
 use std::hash::Hash;
+use gl::types::GLint;
+use mvengine::rendering::post::{OpenGLPostProcessRenderer, OpenGLPostProcessShader};
 
 pub fn main() -> Result<(), ()> {
     mvlogger::init(std::io::stdout(), LevelFilter::Trace);
@@ -29,7 +31,9 @@ struct Application {
     renderer: CreateOnce<LightOpenGLRenderer>,
     camera: CreateOnce<OrthographicCamera>,
     controller: CreateOnce<RenderController>,
-    shader: CreateOnce<LightOpenGLShader>
+    shader: CreateOnce<LightOpenGLShader>,
+    post_render: CreateOnce<OpenGLPostProcessRenderer>,
+    invert_shader: CreateOnce<OpenGLPostProcessShader>
 }
 
 impl WindowCallbacks for Application {
@@ -39,6 +43,8 @@ impl WindowCallbacks for Application {
             camera: CreateOnce::new(),
             controller: CreateOnce::new(),
             shader: CreateOnce::new(),
+            post_render: CreateOnce::new(),
+            invert_shader: CreateOnce::new()
         }
     }
 
@@ -68,10 +74,19 @@ impl WindowCallbacks for Application {
             shader.use_program();
             let controller = RenderController::new(shader.get_program_id());
 
+            let post_render = OpenGLPostProcessRenderer::new(window.info().width as i32, window.info().height as i32);
+
+            let mut post_shader = OpenGLPostProcessShader::new(include_str!("invert.frag"));
+            post_shader.make().unwrap();
+            post_shader.bind().unwrap();
+
+
             self.renderer.create(|| renderer);
             self.camera.create(|| camera);
             self.controller.create(|| controller);
             self.shader.create(|| shader);
+            self.post_render.create(|| post_render);
+            self.invert_shader.create(|| post_shader);
         }
 
         let registry = window.input.action_registry_mut();
@@ -137,7 +152,12 @@ impl WindowCallbacks for Application {
             ],
         });
 
-        self.controller.draw(window, &self.camera, &mut *self.renderer, &mut *self.shader);
+        let target = self.controller.draw_to_target(window, &self.camera, &mut *self.renderer, &mut *self.shader);
+        //idk second shader only receives black texture
+
+        self.post_render.set_target(target);
+        self.post_render.run_shader(&mut *self.invert_shader);
+        self.post_render.draw_to_screen();
     }
 
     fn exiting(&mut self, window: &mut Window) {
