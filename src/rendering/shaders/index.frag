@@ -6,6 +6,7 @@ layout (location = 0) in vec4 fColor;
 layout (location = 1) in vec2 fUv;
 layout (location = 2) in float fTex;
 layout (location = 3) in vec2 fRes;
+layout (location = 4) in vec3 fFragPos;
 
 out vec4 outColor;
 

@@ -1,94 +1,50 @@
-use crate::color::RgbColor;
-use crate::rendering::batch::RenderBatch;
-use crate::window::Window;
-use gl::types::{GLint, GLsizei, GLsizeiptr, GLuint};
-use std::ffi::CString;
 use std::mem::offset_of;
-use std::num::NonZeroU32;
 use std::os::raw::c_void;
 use std::ptr::null;
-use std::str::FromStr;
-use crate::math::vec::{Vec2, Vec4};
+use gl::types::{GLsizei, GLsizeiptr, GLuint};
+use crate::math::vec::{Vec2, Vec3, Vec4};
 use crate::rendering::camera::OrthographicCamera;
+use crate::rendering::{batch, PrimitiveRenderer, Vertex};
 use crate::rendering::shader::OpenGLShader;
-
-pub mod batch;
-pub mod texture;
-pub mod shader;
-pub mod camera;
-pub mod control;
-pub mod light;
+use crate::window::Window;
 
 #[repr(C)]
 #[derive(Clone)]
-pub struct Transform {
-    pub translation: Vec2,
-    pub origin: Vec2,
-    pub scale: Vec2,
-    pub rotation: f32,
-}
-
-impl Transform {
-    pub fn new() -> Self {
-        Self {
-            translation: Vec2::default(),
-            origin: Vec2::default(),
-            scale: Vec2::splat(1.0),
-            rotation: 0.0,
-        }
-    }
-
-    pub fn apply_for_point(&self, point: (i32, i32)) -> (i32, i32) {
-        let translated_x = point.0 as f32 - self.origin.x;
-        let translated_y = point.1 as f32 - self.origin.y;
-        let scaled_x = translated_x * self.scale.x;
-        let scaled_y = translated_y * self.scale.y;
-        let cos_theta = self.rotation.cos();
-        let sin_theta = self.rotation.sin();
-        let rotated_x = scaled_x * cos_theta - scaled_y * sin_theta;
-        let rotated_y = scaled_x * sin_theta + scaled_y * cos_theta;
-        let translated_x = rotated_x + self.origin.x + self.translation.x;
-        let translated_y = rotated_y + self.origin.y + self.translation.y;
-        (translated_x as i32, translated_y as i32)
-    }
-}
-
-#[repr(C)]
-#[derive(Clone)]
-pub struct Vertex {
-    pub transform: Transform,
-    pub pos: (f32, f32, f32),
+pub struct Light {
+    pub pos: Vec2,
     pub color: Vec4,
-    pub uv: (f32, f32),
-    pub texture: f32,
-    pub has_texture: f32,
+    pub intensity: f32,
+    pub range: f32,   // Maximum range of the light
+    pub falloff: f32, // How sharply the intensity decays
 }
 
-pub struct Triangle {
-    pub points: [Vertex; 3],
+pub struct LightOpenGLRenderer {
+    lights: Vec<Light>
 }
 
-pub struct Quad {
-    pub points: [Vertex; 4],
-}
-
-pub trait PrimitiveRenderer {
-    fn draw_data(&mut self, window: &Window, camera: &OrthographicCamera, vertices: &[u8], indices: &[u32], textures: &[f32], vbo: GLuint, ibo: GLuint, amount: u32, shader: &mut OpenGLShader);
-}
-
-pub struct OpenGLRenderer;
-
-impl OpenGLRenderer {
+impl LightOpenGLRenderer {
     pub unsafe fn initialize(window: &Window) -> Self {
         let handle = window.get_handle();
 
         handle.make_current().expect("Cannot make OpenGL context current");
 
-        Self {}
+        Self { lights: vec![] }
+    }
+
+    pub fn push_light(&mut self, light: Light) {
+        self.lights.push(light);
+    }
+
+    pub fn lights(&self) -> &Vec<Light> {
+        &self.lights
+    }
+
+    pub fn lights_mut(&mut self) -> &mut Vec<Light> {
+        &mut self.lights
     }
 }
 
-impl PrimitiveRenderer for OpenGLRenderer {
+impl PrimitiveRenderer for LightOpenGLRenderer {
     fn draw_data(&mut self, window: &Window, camera: &OrthographicCamera, vertices: &[u8], indices: &[u32], textures: &[f32], vbo: GLuint, ibo: GLuint, amount: u32, shader: &mut OpenGLShader) {
         unsafe {
             gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
@@ -102,6 +58,20 @@ impl PrimitiveRenderer for OpenGLRenderer {
             shader.uniform_matrix_4fv("uProjection", &camera.get_projection());
             shader.uniform_matrix_4fv("uView", &camera.get_view());
             shader.uniform_1fv("TEX_SAMPLER", &textures);
+
+            shader.uniform_1i("NUM_LIGHTS", self.lights.len() as i32);
+
+            for (i, light) in self.lights.iter().enumerate() {
+                let index = i as i32;
+                let light_name = format!("LIGHTS[{}]", index);
+
+                shader.uniform_2fv(&format!("{}.pos", light_name), &light.pos);
+                shader.uniform_4fv(&format!("{}.color", light_name), &light.color);
+                shader.uniform_1f(&format!("{}.intensity", light_name), light.intensity);
+                shader.uniform_1f(&format!("{}.range", light_name), light.range);
+                shader.uniform_1f(&format!("{}.falloff", light_name), light.falloff);
+            }
+
 
             let stride = batch::VERTEX_SIZE_BYTES as GLsizei;
 

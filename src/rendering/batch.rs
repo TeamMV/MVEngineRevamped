@@ -1,38 +1,18 @@
 use gl::types::GLuint;
-use crate::rendering::{PrimitiveRenderer, Quad, Triangle};
+use crate::rendering::{PrimitiveRenderer, Quad, Triangle, Vertex};
 use crate::rendering::camera::OrthographicCamera;
 use crate::rendering::shader::OpenGLShader;
 use crate::window::Window;
 
 pub const BATCH_VERTEX_AMOUNT: usize = 1_000;
 
-pub const POSITION_SIZE: usize = 3;
-pub const POSITION_SIZE_BYTES: usize = POSITION_SIZE * 4;
-pub const POSITION_OFFSET: usize = 0;
-pub const POSITION_OFFSET_BYTES: usize = POSITION_OFFSET * 4;
-
-pub const COLOR_SIZE: usize = 4;
-pub const COLOR_SIZE_BYTES: usize = COLOR_SIZE * 4;
-pub const COLOR_OFFSET: usize = POSITION_OFFSET + POSITION_SIZE;
-pub const COLOR_OFFSET_BYTES: usize = COLOR_OFFSET * 4;
-
-pub const UV_SIZE: usize = 2;
-pub const UV_SIZE_BYTES: usize = UV_SIZE * 4;
-pub const UV_OFFSET: usize = COLOR_OFFSET + COLOR_SIZE;
-pub const UV_OFFSET_BYTES: usize = UV_OFFSET * 4;
-
-pub const TEXTURE_SIZE: usize = 1;
-pub const TEXTURE_SIZE_BYTES: usize = TEXTURE_SIZE * 4;
-pub const TEXTURE_OFFSET: usize = UV_OFFSET + UV_SIZE;
-pub const TEXTURE_OFFSET_BYTES: usize = TEXTURE_OFFSET * 4;
-
-pub const VERTEX_SIZE: usize = POSITION_SIZE + COLOR_SIZE + UV_SIZE + TEXTURE_SIZE;
-pub const VERTEX_SIZE_BYTES: usize = VERTEX_SIZE * 4;
+pub const VERTEX_SIZE_BYTES: usize = size_of::<Vertex>();
+pub const VERTEX_SIZE: usize = VERTEX_SIZE_BYTES / 4;
 
 pub const MAX_TEXTURES: usize = 16;
 
 pub(crate) struct RenderBatch {
-    pub(crate) vertex_data: [f32; VERTEX_SIZE * BATCH_VERTEX_AMOUNT],
+    pub(crate) vertex_data: [u8; VERTEX_SIZE_BYTES * BATCH_VERTEX_AMOUNT],
     pub(crate) index_data: [u32; BATCH_VERTEX_AMOUNT * 6],
     pub(crate) texture_data: [f32; MAX_TEXTURES],
     vertex_index: usize,
@@ -41,11 +21,11 @@ pub(crate) struct RenderBatch {
     triangle_index: usize,
     vbo_id: GLuint,
     ibo_id: GLuint,
-    shader: OpenGLShader
+    shader: GLuint
 }
 
 impl RenderBatch {
-    pub(crate) unsafe fn new(shader: OpenGLShader) -> Self {
+    pub(crate) unsafe fn new(shader: GLuint) -> Self {
         let mut vbo_id = 0;
         let mut ibo_id = 0;
         gl::GenBuffers(1, &mut vbo_id);
@@ -55,7 +35,7 @@ impl RenderBatch {
         gl::GetIntegerv(gl::MAX_TEXTURE_IMAGE_UNITS, &mut texture_units);
 
         Self {
-            vertex_data: [0.0; VERTEX_SIZE * BATCH_VERTEX_AMOUNT],
+            vertex_data: [0; VERTEX_SIZE_BYTES * BATCH_VERTEX_AMOUNT],
             index_data: [0; BATCH_VERTEX_AMOUNT * 6],
             texture_data: [0.0; MAX_TEXTURES],
             vertex_index: 0,
@@ -69,22 +49,15 @@ impl RenderBatch {
     }
 
     pub(crate) fn push_triangle(&mut self, triangle: Triangle) {
-        for vertex in triangle.points {
-            self.vertex_data[self.vertex_index + 0] = vertex.pos.0 as f32;
-            self.vertex_data[self.vertex_index + 1] = vertex.pos.1 as f32;
-            self.vertex_data[self.vertex_index + 2] = vertex.pos.2 as f32;
+        for vertex in triangle.points.iter() {
+            unsafe {
+                let src_ptr = vertex as *const Vertex as *const u8;
+                let dst_ptr = self.vertex_data.as_mut_ptr().add(self.vertex_index) as *mut u8;
 
-            let col_vec = vertex.color.as_vec4();
-            self.vertex_data[self.vertex_index + 3] = col_vec.x;
-            self.vertex_data[self.vertex_index + 4] = col_vec.y;
-            self.vertex_data[self.vertex_index + 5] = col_vec.z;
-            self.vertex_data[self.vertex_index + 6] = col_vec.w;
+                std::ptr::copy_nonoverlapping(src_ptr, dst_ptr, VERTEX_SIZE_BYTES);
 
-            self.vertex_data[self.vertex_index + 7] = vertex.uv.0;
-            self.vertex_data[self.vertex_index + 8] = vertex.uv.1;
-
-            self.vertex_data[self.vertex_index + 9] = vertex.texture as f32;
-            self.vertex_index += VERTEX_SIZE;
+                self.vertex_index += VERTEX_SIZE_BYTES;
+            }
         }
 
         self.index_data[self.index_index + 0] = self.triangle_index as u32 + 0;
@@ -96,22 +69,15 @@ impl RenderBatch {
     }
 
     pub(crate) fn push_quad(&mut self, quad: Quad) {
-        for vertex in quad.points {
-            self.vertex_data[self.vertex_index + 0] = vertex.pos.0 as f32;
-            self.vertex_data[self.vertex_index + 1] = vertex.pos.1 as f32;
-            self.vertex_data[self.vertex_index + 2] = vertex.pos.2 as f32;
+        for vertex in quad.points.iter() {
+            unsafe {
+                let src_ptr = vertex as *const Vertex as *const u8;
+                let dst_ptr = self.vertex_data.as_mut_ptr().add(self.vertex_index) as *mut u8;
 
-            let col_vec = vertex.color.as_vec4();
-            self.vertex_data[self.vertex_index + 3] = col_vec.x;
-            self.vertex_data[self.vertex_index + 4] = col_vec.y;
-            self.vertex_data[self.vertex_index + 5] = col_vec.z;
-            self.vertex_data[self.vertex_index + 6] = col_vec.w;
+                std::ptr::copy_nonoverlapping(src_ptr, dst_ptr, VERTEX_SIZE_BYTES);
 
-            self.vertex_data[self.vertex_index + 7] = vertex.uv.0;
-            self.vertex_data[self.vertex_index + 8] = vertex.uv.1;
-
-            self.vertex_data[self.vertex_index + 9] = vertex.texture as f32;
-            self.vertex_index += VERTEX_SIZE;
+                self.vertex_index += VERTEX_SIZE_BYTES;
+            }
         }
 
         self.index_data[self.index_index + 0] = self.triangle_index as u32 + 0;
@@ -136,8 +102,8 @@ impl RenderBatch {
         let mut needed_tex = 0;
         let mut seen = Vec::new();
         for vertex in &triangle.points {
-            if vertex.has_texture {
-                if !seen.contains(&vertex.texture) && !self.has_texture(vertex.texture) {
+            if vertex.has_texture == 1.0 {
+                if !seen.contains(&vertex.texture) && !self.has_texture(vertex.texture as GLuint) {
                     needed_tex += 1;
                     seen.push(vertex.texture);
                 }
@@ -157,8 +123,8 @@ impl RenderBatch {
         let mut needed_tex = 0;
         let mut seen = Vec::new();
         for vertex in &quad.points {
-            if vertex.has_texture {
-                if !seen.contains(&vertex.texture) && !self.has_texture(vertex.texture) {
+            if vertex.has_texture == 1.0 {
+                if !seen.contains(&vertex.texture) && !self.has_texture(vertex.texture as GLuint) {
                     needed_tex += 1;
                     seen.push(vertex.texture);
                 }
@@ -183,7 +149,7 @@ impl RenderBatch {
         self.vertex_index == 0
     }
 
-    pub fn draw(&mut self, window: &Window, camera: &OrthographicCamera, renderer: &mut impl PrimitiveRenderer) {
+    pub fn draw(&mut self, window: &Window, camera: &OrthographicCamera, renderer: &mut impl PrimitiveRenderer, shader: &mut OpenGLShader) {
         renderer.draw_data(
             window,
             camera,
@@ -193,7 +159,7 @@ impl RenderBatch {
             self.vbo_id,
             self.ibo_id,
             self.triangle_index as u32 * 3,
-            &mut self.shader
+            shader
         );
         self.prepare_batch();
     }

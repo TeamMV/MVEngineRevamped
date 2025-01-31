@@ -1,9 +1,12 @@
+pub mod default;
+pub mod light;
+
+use crate::math::mat::{Mat2, Mat3, Mat4};
+use crate::math::vec::{Vec2, Vec3, Vec4};
+use gl::types::{GLint, GLsizei, GLuint};
 use std::ffi::CString;
 use std::ptr;
 use std::str::FromStr;
-use gl::types::{GLchar, GLint, GLsizei, GLuint};
-use crate::math::mat::{Mat2, Mat3, Mat4};
-use crate::math::vec::{Vec2, Vec3, Vec4};
 
 #[derive(Clone)]
 pub struct OpenGLShader {

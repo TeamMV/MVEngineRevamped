@@ -1,3 +1,4 @@
+use gl::types::GLuint;
 use crate::rendering::batch::RenderBatch;
 use crate::rendering::shader::OpenGLShader;
 use crate::rendering::{PrimitiveRenderer, Quad, Triangle};
@@ -5,16 +6,16 @@ use crate::rendering::camera::OrthographicCamera;
 use crate::window::Window;
 
 pub struct RenderController {
-    default_shader: OpenGLShader,
+    default_shader: GLuint,
     batches: Vec<RenderBatch>,
     batch_index: usize
 }
 
 impl RenderController {
-    pub fn new(default_shader: OpenGLShader) -> Self {
+    pub fn new(default_shader: GLuint) -> Self {
         unsafe {
             Self {
-                default_shader: default_shader.clone(),
+                default_shader,
                 batches: vec![RenderBatch::new(default_shader)],
                 batch_index: 0,
             }
@@ -54,10 +55,10 @@ impl RenderController {
         }
     }
 
-    pub fn draw(&mut self, window: &Window, camera: &OrthographicCamera, renderer: &mut impl PrimitiveRenderer) {
+    pub fn draw(&mut self, window: &Window, camera: &OrthographicCamera, renderer: &mut impl PrimitiveRenderer, shader: &mut OpenGLShader) {
         for batch in &mut self.batches {
             if !batch.is_empty() {
-                batch.draw(window, camera, renderer);
+                batch.draw(window, camera, renderer, shader);
             }
         }
         self.batch_index = 0;

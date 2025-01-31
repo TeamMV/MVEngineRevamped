@@ -1,18 +1,17 @@
-use std::hash::{DefaultHasher, Hash, Hasher};
-use std::thread;
-use std::thread::sleep;
-use std::time::Duration;
 use log::LevelFilter;
-use mvutils::once::CreateOnce;
-use mvengine::window::app::WindowCallbacks;
-use mvengine::window::{UninitializedWindow, Window, WindowCreateInfo};
 use mvengine::color::RgbColor;
 use mvengine::input::consts::Key;
 use mvengine::input::registry::RawInput;
+use mvengine::math::vec::Vec2;
 use mvengine::rendering::camera::OrthographicCamera;
 use mvengine::rendering::control::RenderController;
-use mvengine::rendering::{OpenGLRenderer, Triangle, Vertex};
-use mvengine::rendering::shader::OpenGLShader;
+use mvengine::rendering::light::{Light, LightOpenGLRenderer};
+use mvengine::rendering::shader::light::LightOpenGLShader;
+use mvengine::rendering::{Transform, Triangle, Vertex};
+use mvengine::window::app::WindowCallbacks;
+use mvengine::window::{UninitializedWindow, Window, WindowCreateInfo};
+use mvutils::once::CreateOnce;
+use std::hash::Hash;
 
 pub fn main() -> Result<(), ()> {
     mvlogger::init(std::io::stdout(), LevelFilter::Trace);
@@ -27,9 +26,10 @@ pub fn main() -> Result<(), ()> {
 }
 
 struct Application {
-    renderer: CreateOnce<OpenGLRenderer>,
+    renderer: CreateOnce<LightOpenGLRenderer>,
     camera: CreateOnce<OrthographicCamera>,
     controller: CreateOnce<RenderController>,
+    shader: CreateOnce<LightOpenGLShader>
 }
 
 impl WindowCallbacks for Application {
@@ -38,25 +38,40 @@ impl WindowCallbacks for Application {
             renderer: CreateOnce::new(),
             camera: CreateOnce::new(),
             controller: CreateOnce::new(),
+            shader: CreateOnce::new(),
         }
     }
 
     fn post_init(&mut self, window: &mut Window) {
         unsafe {
-            let renderer = OpenGLRenderer::initialize(window);
+            let mut renderer = LightOpenGLRenderer::initialize(window);
+            renderer.push_light(Light {
+                pos: Vec2::new(250.0, 175.0),
+                color: RgbColor::yellow().as_vec4(),
+                intensity: 200.0,
+                range: 200.0,
+                falloff: 0.2,
+            });
+
+            renderer.push_light(Light {
+                pos: Vec2::new(550.0, 175.0),
+                color: RgbColor::green().as_vec4(),
+                intensity: 20000.0,
+                range: 500.0,
+                falloff: 3.0,
+            });
+
             let camera = OrthographicCamera::new(window.info().width, window.info().height);
-            let mut shader = OpenGLShader::new(
-                include_str!("index.vert"),
-                include_str!("index.frag")
-            );
+            let mut shader = LightOpenGLShader::new();
             shader.make().unwrap();
             shader.bind().unwrap();
             shader.use_program();
-            let controller = RenderController::new(shader);
+            let controller = RenderController::new(shader.get_program_id());
 
             self.renderer.create(|| renderer);
             self.camera.create(|| camera);
             self.controller.create(|| controller);
+            self.shader.create(|| shader);
         }
 
         let registry = window.input.action_registry_mut();
@@ -64,6 +79,9 @@ impl WindowCallbacks for Application {
         registry.create_action("left");
         registry.bind_action("forward", vec![RawInput::KeyPress(Key::W)]);
         registry.bind_action("left", vec![RawInput::KeyPress(Key::A)]);
+
+        registry.create_action("save");
+        registry.bind_action("save", vec![RawInput::KeyPress(Key::LControl), RawInput::KeyPress(Key::S)]);
     }
 
     fn update(&mut self, window: &mut Window, delta_u: f64) {
@@ -79,33 +97,47 @@ impl WindowCallbacks for Application {
             println!("left is triggered");
         }
 
+        if window.input.was_action("save") {
+            println!("save was triggered");
+        }
+
+        let trns = Transform {
+            translation: Default::default(),
+            origin: Vec2::new(150.0, 150.0),
+            scale: Vec2::splat(1.0),
+            rotation: 0f32.to_radians(),
+        };
+
         self.controller.push_triangle(Triangle {
             points: [
                 Vertex {
-                    pos: (100, 100, 60),
-                    color: RgbColor::red(),
+                    transform: trns.clone(),
+                    pos: (100.0, 100.0, 60.0),
+                    color: RgbColor::white().as_vec4(),
                     uv: (0.0, 0.0),
-                    texture: 0,
-                    has_texture: false,
+                    texture: 0.0,
+                    has_texture: 0.0,
                 },
                 Vertex {
-                    pos: (100, 200, 60),
-                    color: RgbColor::red(),
+                    transform: trns.clone(),
+                    pos: (300.0, 400.0, 60.0),
+                    color: RgbColor::white().as_vec4(),
                     uv: (0.0, 0.0),
-                    texture: 0,
-                    has_texture: false,
+                    texture: 0.0,
+                    has_texture: 0.0,
                 },
                 Vertex {
-                    pos: (200, 200, 60),
-                    color: RgbColor::red(),
+                    transform: trns,
+                    pos: (500.0, 100.0, 60.0),
+                    color: RgbColor::white().as_vec4(),
                     uv: (0.0, 0.0),
-                    texture: 0,
-                    has_texture: false,
+                    texture: 0.0,
+                    has_texture: 0.0,
                 }
             ],
         });
 
-        self.controller.draw(window, &self.camera, &mut *self.renderer);
+        self.controller.draw(window, &self.camera, &mut *self.renderer, &mut *self.shader);
     }
 
     fn exiting(&mut self, window: &mut Window) {

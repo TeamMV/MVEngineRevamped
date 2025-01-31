@@ -5,7 +5,6 @@ use crate::ui::render::triangle::TriangleCtx;
 use crate::ui::render::UiRenderer;
 use mvcore::render::backend::swapchain::SwapchainError;
 use mvcore::render::texture::{DrawTexture, Texture};
-use mve2d::gpu::Transform;
 use mve2d::renderer2d::{InputTriangle, SamplerType};
 use std::sync::Arc;
 use mvcore::color::RgbColor;
