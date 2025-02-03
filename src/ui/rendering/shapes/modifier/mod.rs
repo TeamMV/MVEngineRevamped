@@ -2,8 +2,8 @@ pub mod boolean;
 
 use hashbrown::HashMap;
 use mvutils::lazy;
-use crate::ui::render::ctx::DrawShape;
-use crate::ui::render::shapes::Param;
+use crate::ui::rendering::ctx::DrawShape;
+use crate::ui::rendering::shapes::Param;
 
 lazy! {
     pub static MODIFIER_BOOLEAN: Modifier = Modifier::new("Boolean", vec![ParamType::Str, ParamType::Str], boolean::compute);

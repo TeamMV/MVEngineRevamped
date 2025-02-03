@@ -1,15 +1,19 @@
 pub mod app;
 
 use std::mem;
+use std::ops::FromResidual;
 use crate::window::app::WindowCallbacks;
 use std::time::SystemTime;
-use glutin::{ElementState, Event, MouseButton, MouseScrollDelta, VirtualKeyCode, WindowBuilder};
+use glutin::{ContextError, CreationError, ElementState, Event, MonitorId, MouseButton, MouseScrollDelta, VirtualKeyCode, WindowBuilder};
 use hashbrown::HashSet;
 use mvutils::once::CreateOnce;
+use mvutils::remake::Remake;
 use mvutils::unsafe_utils::{DangerousCell, Unsafe};
 use crate::input::collect::InputCollector;
 use crate::input::{Input, KeyboardAction, MouseAction, RawInputEvent};
 use crate::input::consts::{Key};
+use crate::rendering::bindless;
+use crate::ui::Ui;
 
 const NANOS_PER_SEC: u64 = 1_000_000_000;
 
@@ -102,6 +106,24 @@ pub enum State {
     Exited,
 }
 
+#[derive(Debug)]
+pub enum Error {
+    Window(CreationError),
+    OpenGL(ContextError)
+}
+
+impl From<CreationError> for Error {
+    fn from(residual: CreationError) -> Self {
+        Error::Window(residual)
+    }
+}
+
+impl From<ContextError> for Error {
+    fn from(residual: ContextError) -> Self {
+        Error::OpenGL(residual)
+    }
+}
+
 pub struct Window {
     pub(crate) info: WindowCreateInfo,
 
@@ -115,8 +137,13 @@ pub struct Window {
     time_f: SystemTime,
     time_u: SystemTime,
 
+    cached_pos: (i32, i32),
+    cached_size: (u32, u32),
+
     pub input: Input,
-    pressed_keys: HashSet<Key>
+    pressed_keys: HashSet<Key>,
+
+    pub ui: Ui
 }
 
 impl Window {
@@ -136,28 +163,47 @@ impl Window {
             delta_u: 0.0,
             time_f: SystemTime::now(),
             time_u: SystemTime::now(),
+            cached_pos: (0, 0),
+            cached_size: (0, 0),
             input: Input::new(),
             pressed_keys: HashSet::new(),
+            ui: Ui::new(),
         }
     }
 
-    pub fn run<T: WindowCallbacks + 'static>(mut self) -> Result<(), ()> {
+    pub fn run<T: WindowCallbacks + 'static>(mut self) -> Result<(), Error> {
         let mut app_loop = T::new(UninitializedWindow { inner: &mut self });
 
         let mut window = WindowBuilder::new()
             .with_visibility(false)
-            .with_dimensions(self.info.width, self.info.height)
             .with_title(self.info.title.clone())
             .with_decorations(self.info.decorated);
+
+        if self.info.fullscreen {
+            let monitor = glutin::get_primary_monitor();
+            let (w, h) = monitor.get_dimensions();
+            self.cached_size = (self.info.width, self.info.height);
+            self.cached_pos = (w as i32 / 2, h as i32 / 2);
+            self.info.width = w;
+            self.info.height = h;
+            window = window.with_fullscreen(monitor);
+        } else {
+            window = window.with_dimensions(self.info.width, self.info.height);
+        }
+
         if self.info.vsync {
             window = window.with_vsync();
         }
 
-        let w = window.build().map_err(|_| ())?;
-        unsafe { w.make_current().map_err(|_| ())?; }
+        let w = window.build()?;
+        unsafe { w.make_current()?; }
         gl::load_with(|symbol| {
             w.get_proc_address(symbol) as *const _
         });
+
+        unsafe {
+            //bindless::load_bindless_texture_functions(&w);
+        }
 
         self.handle.create(|| w);
 
@@ -248,7 +294,7 @@ impl Window {
 
                 app_loop.draw(&mut self, delta_t);
                 self.input.collector.end_frame();
-                self.handle.swap_buffers().map_err(|_| ())?;
+                self.handle.swap_buffers()?;
             }
         }
 
@@ -298,6 +344,39 @@ impl Window {
 
     pub fn center(&self) -> (i32, i32) {
         ((self.info.width / 2) as i32, (self.info.height / 2) as i32)
+    }
+
+    pub fn is_fullscreen(&self) -> bool {
+        self.info.fullscreen
+    }
+
+    pub fn toggle_fullscreen(&mut self) {
+        self.fullscreen(!self.is_fullscreen());
+    }
+
+    pub fn fullscreen(&mut self, fullscreen: bool) {
+        if self.info.fullscreen == fullscreen {
+            return;
+        }
+        self.info.fullscreen = fullscreen;
+        if fullscreen {
+            self.cached_size = (self.info.width, self.info.height);
+            self.cached_pos = self.handle.get_position().unwrap_or((0, 0));
+            let monitor = glutin::get_primary_monitor();
+            let (w, h) = monitor.get_dimensions();
+            self.info.width = w;
+            self.info.height = h;
+        } else {
+
+        }
+    }
+
+    pub fn ui(&self) -> &Ui {
+        &self.ui
+    }
+
+    pub fn ui_mut (&mut self) -> &mut Ui {
+        &mut self.ui
     }
 }
 

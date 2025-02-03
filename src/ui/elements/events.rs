@@ -1,10 +1,10 @@
 use crate::ui::elements::child::Child;
 use crate::ui::elements::{UiElement, UiElementStub};
 use crate::ui::styles::Point;
-use mvcore::input::raw::Input;
-use mvcore::input::{KeyboardAction, MouseAction};
 use mvutils::unsafe_utils::Unsafe;
 use mvutils::utils::TetrahedronOp;
+use crate::input::{Input, KeyboardAction, MouseAction};
+use crate::input::consts::MouseButton;
 
 const CLICK_LISTENER: u32 = 0;
 const SCROLL_LISTENER: u32 = 1;
@@ -52,7 +52,7 @@ impl UiEvents {
             }
         }
 
-        let (mx, my) = (input.positions[0], input.positions[1]);
+        let (mx, my) = (input.mouse_x, input.mouse_y);
 
         match action {
             MouseAction::Move(max, may) => {
@@ -313,7 +313,7 @@ impl UiMouseEvents {
 
 pub struct UiClickEvent<'a> {
     pub base: UiEventBase<'a, UiClickAction>,
-    pub button: usize,
+    pub button: MouseButton,
 }
 
 #[derive(Clone, PartialEq)]

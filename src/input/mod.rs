@@ -1,5 +1,7 @@
+use std::sync::Arc;
 use bitflags::Bits;
-use crate::input::collect::InputCollector;
+use parking_lot::Mutex;
+use crate::input::collect::{InputCollector, InputProcessor};
 use crate::input::consts::{Key, MouseButton};
 use crate::input::registry::{ActionInputProcessor, InputRegistry};
 
@@ -41,6 +43,10 @@ impl Input {
             mouse_x: i32::EMPTY,
             mouse_y: i32::EMPTY,
         }
+    }
+
+    pub fn register_new_event_target(&mut self, target: Arc<Mutex<dyn InputProcessor>>) {
+        self.collector.register_new_event_target(target);
     }
 
     pub fn is_action(&self, name: &str) -> bool {

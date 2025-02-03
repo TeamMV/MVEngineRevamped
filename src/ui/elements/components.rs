@@ -1,36 +1,31 @@
 use std::marker::PhantomData;
 use std::ops::Deref;
 use crate::ui::geometry::Rect;
-use crate::ui::render::ctx::{DrawContext2D, DrawShape};
 use crate::ui::styles::{BackgroundRes, Resolve, ResolveResult, UiShape, UiStyle};
 use mvutils::state::State;
-use mvcore::render::texture::DrawTexture;
-use mve2d::renderer2d::SamplerType;
+use crate::{get_adaptive, get_shape, resolve};
 use crate::ui::elements::{UiElement, UiElementStub};
-use crate::ui::{get_adaptive, get_shape, resolve, styles, ui};
 use crate::ui::context::{UiContext, UiResources};
-use crate::ui::render::adaptive::AdaptiveShape;
-use crate::ui::render::ctx;
+use crate::ui::rendering::adaptive::AdaptiveShape;
+use crate::ui::rendering::ctx;
+use crate::ui::rendering::ctx::{DrawContext2D, DrawShape};
 use crate::ui::res::err::{UiResErr, ResType, UiResult};
 use crate::ui::res::MVR;
 
 #[derive(Clone)]
 pub struct ElementBody<E: UiElementStub> {
-    context: UiContext,
     _phantom: PhantomData<E>
 }
 
 impl<E: UiElementStub> ElementBody<E> {
-    pub fn new(context: UiContext) -> Self {
+    pub fn new() -> Self {
         Self {
-            context: context.clone(),
             _phantom: PhantomData::default(),
         }
     }
 
-    pub fn draw(&mut self, elem: &E, ctx: &mut DrawContext2D) {
-        let res = self.context.resources;
-        let style = elem.style();
+    pub fn draw(&mut self, elem: &E, ctx: &mut DrawContext2D, context: &UiContext) {
+        let res = context.resources;
 
         let resolved = resolve!(elem, background.shape);
         if resolved.is_set() {
@@ -39,13 +34,13 @@ impl<E: UiElementStub> ElementBody<E> {
                 UiShape::Shape(s) => {
                     let shape = get_shape!(res, s).ok();
                     if let Some(shape) = shape {
-                        Self::draw_background_shape(shape.clone(), elem, ctx);
+                        Self::draw_background_shape(shape.clone(), elem, ctx, context);
                     }
                 }
                 UiShape::Adaptive(a) => {
                     let shape = get_adaptive!(res, a).ok();
                     if let Some(shape) = shape {
-                        Self::draw_background_adaptive(shape, elem, ctx);
+                        Self::draw_background_adaptive(shape, elem, ctx, context);
                     }
                 }
             }
@@ -58,20 +53,20 @@ impl<E: UiElementStub> ElementBody<E> {
                 UiShape::Shape(s) => {
                     let shape = get_shape!(res, s).ok();
                     if let Some(shape) = shape {
-                        Self::draw_border_shape(shape.clone(), elem, ctx);
+                        Self::draw_border_shape(shape.clone(), elem, ctx, context);
                     }
                 }
                 UiShape::Adaptive(a) => {
                     let shape = get_adaptive!(res, a).ok();
                     if let Some(shape) = shape {
-                        Self::draw_border_adaptive(shape, elem, ctx);
+                        Self::draw_border_adaptive(shape, elem, ctx, context);
                     }
                 }
             }
         }
     }
 
-    fn draw_background_shape(mut background_shape: DrawShape, elem: &E, ctx: &mut DrawContext2D) {
+    fn draw_background_shape(mut background_shape: DrawShape, elem: &E, ctx: &mut DrawContext2D, context: &UiContext) {
         let state = elem.state();
         let style = elem.style();
         let bounds = &state.rect;
@@ -101,8 +96,8 @@ impl<E: UiElementStub> ElementBody<E> {
                     let tex = resolve!(elem, background.texture);
                     if let ResolveResult::Value(tex) = tex {
                         let tex = tex.deref().clone();
-                        if let Some(tex) = ui().context.resources.resolve_texture(tex) {
-                            background_shape.set_texture(ctx::texture().source(Some(DrawTexture::Texture(tex.clone()))).sampler(SamplerType::Nearest));
+                        if let Some(tex) = context.resources.resolve_texture(tex) {
+                            background_shape.set_texture(ctx::texture().source(Some(tex.clone())));
                         } else {
                             bg_empty = true;
                         }
@@ -122,7 +117,7 @@ impl<E: UiElementStub> ElementBody<E> {
         }
     }
 
-    fn draw_border_shape(mut border_shape: DrawShape, elem: &E, ctx: &mut DrawContext2D) {
+    fn draw_border_shape(mut border_shape: DrawShape, elem: &E, ctx: &mut DrawContext2D, context: &UiContext) {
         let state = elem.state();
         let style = elem.style();
         let bounds = &state.rect;
@@ -151,8 +146,8 @@ impl<E: UiElementStub> ElementBody<E> {
                     let tex = resolve!(elem, background.texture);
                     if let ResolveResult::Value(tex) = tex {
                         let tex = tex.deref().clone();
-                        if let Some(tex) = ui().context.resources.resolve_texture(tex) {
-                            border_shape.set_texture(ctx::texture().source(Some(DrawTexture::Texture(tex.clone()))).sampler(SamplerType::Nearest));
+                        if let Some(tex) = context.resources.resolve_texture(tex) {
+                            border_shape.set_texture(ctx::texture().source(Some(tex.clone())));
                         } else {
                             bd_empty = true;
                         }
@@ -168,7 +163,7 @@ impl<E: UiElementStub> ElementBody<E> {
         }
     }
 
-    fn draw_background_adaptive(bg_shape: &AdaptiveShape, elem: &E, ctx: &mut DrawContext2D) {}
+    fn draw_background_adaptive(bg_shape: &AdaptiveShape, elem: &E, ctx: &mut DrawContext2D, context: &UiContext) {}
 
-    fn draw_border_adaptive(bd_shape: &AdaptiveShape, elem: &E, ctx: &mut DrawContext2D) {}
+    fn draw_border_adaptive(bd_shape: &AdaptiveShape, elem: &E, ctx: &mut DrawContext2D, context: &UiContext) {}
 }

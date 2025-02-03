@@ -57,22 +57,27 @@ impl RenderController {
     }
 
     pub fn draw(&mut self, window: &Window, camera: &OrthographicCamera, renderer: &mut impl PrimitiveRenderer, shader: &mut OpenGLShader) {
+        renderer.begin_frame();
         for batch in &mut self.batches {
             if !batch.is_empty() {
                 batch.draw(window, camera, renderer, shader);
             }
         }
         self.batch_index = 0;
+        renderer.end_frame();
     }
 
     pub fn draw_to_target(&mut self, window: &Window, camera: &OrthographicCamera, renderer: &mut impl PrimitiveRenderer, shader: &mut OpenGLShader) -> RenderTarget {
         shader.use_program();
-        let mut render_target = RenderTarget { texture: 0, framebuffer: 0 };
+        let mut render_target = RenderTarget { texture_1: 0, texture_2: 0, framebuffer: 0, renderbuffer: 0, depth_texture: 0 };
+        renderer.begin_frame_to_target(&mut render_target);
+
         for batch in &mut self.batches {
             if !batch.is_empty() {
                 batch.draw_to_target(window, camera, renderer, shader, &mut render_target);
             }
         }
+        renderer.end_frame_to_target(&mut render_target);
         self.batch_index = 0;
         render_target
     }

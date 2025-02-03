@@ -1,12 +1,10 @@
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use mvutils::unsafe_utils::DangerousCell;
-use mvcore::color::RgbColor;
-use mvcore::render::backend::device::Device;
-use mvcore::render::texture::Texture;
-use mvcore::ToAD;
-use crate::ui::render::adaptive::AdaptiveShape;
-use crate::ui::render::ctx::DrawShape;
+use crate::color::RgbColor;
+use crate::rendering::texture::Texture;
+use crate::ui::rendering::adaptive::AdaptiveShape;
+use crate::ui::rendering::ctx::DrawShape;
 
 #[derive(Clone)]
 pub struct UiContext {
@@ -19,7 +17,7 @@ impl UiContext {
             resources,
         };
         Self {
-            inner: inner.to_ad(),
+            inner: Arc::new(DangerousCell::new(inner)),
         }
     }
 }

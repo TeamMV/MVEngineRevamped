@@ -1,11 +1,11 @@
 use std::cmp::Ordering;
-use crate::ui::render::ctx::DrawShape;
-use crate::ui::render::shapes::{geometry, Param};
 use hashbrown::{HashMap, HashSet};
 use itertools::Itertools;
 use log::warn;
-use mvcore::math::vec::Vec2;
-use crate::ui::render::ctx;
+use crate::math::vec::Vec2;
+use crate::ui::rendering::ctx;
+use crate::ui::rendering::ctx::DrawShape;
+use crate::ui::rendering::shapes::{geometry, Param};
 
 trait Dedup<T: PartialEq + Clone> {
     fn clear_duplicates(&mut self);
@@ -44,7 +44,7 @@ fn compute_union(input: &DrawShape, other: &DrawShape) -> Result<DrawShape, Stri
 }
 
 pub fn compute_intersect(input: &DrawShape, clipping: &DrawShape) -> Result<DrawShape, String> {
-    let mut end_shape = DrawShape { triangles: vec![], textures: vec![], extent: (0, 0) };
+    let mut end_shape = DrawShape { triangles: vec![], extent: (0, 0) };
 
     for input_triangle in &input.triangles {
         let input_vertices = input_triangle.vec2s();

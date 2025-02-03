@@ -1,10 +1,10 @@
 use std::fmt::{Debug, Formatter, Write};
 use hashbrown::HashMap;
 use itertools::Itertools;
-use mvcore::math::vec::Vec2;
+use crate::math::vec::Vec2;
 use crate::ui::geometry::SimpleRect;
-use crate::ui::render::ctx::DrawShape;
-use crate::ui::render::shapes::geometry;
+use crate::ui::rendering::ctx::DrawShape;
+use crate::ui::rendering::shapes::geometry;
 
 type Point = (i32, i32);
 type Edge = (Point, Point);
@@ -135,10 +135,10 @@ impl Polygon {
         let mut edge_count = HashMap::new();
         for triangle in shape.triangles.iter() {
             for edge in [
-                (triangle.points[0], triangle.points[1]),
-                (triangle.points[1], triangle.points[2]),
-                (triangle.points[2], triangle.points[0]),
-            ] {
+                (triangle.points[0].pos, triangle.points[1].pos),
+                (triangle.points[1].pos, triangle.points[2].pos),
+                (triangle.points[2].pos, triangle.points[0].pos),
+            ].map(|x| ((x.0.0 as i32, x.0.1 as i32), (x.1.0 as i32, x.1.1 as i32))) {
                 let normalized_edge = if edge.0 < edge.1 { edge } else { (edge.1, edge.0) };
                 *edge_count.entry(normalized_edge).or_insert(0) += 1;
             }

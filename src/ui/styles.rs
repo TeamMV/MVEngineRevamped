@@ -1,20 +1,17 @@
-use std::any::TypeId;
-use crate::ui::blanked_partial_ord;
+use crate::blanked_partial_ord;
+use crate::color::{Color, ColorFormat, RgbColor};
 use crate::ui::elements::{UiElement, UiElementState, UiElementStub};
 use crate::ui::res::MVR;
-use mvcore::color::{Color, ColorFormat, RgbColor};
-use mvcore::render::texture::Texture;
 use mvutils::save::Savable;
 use mvutils::unsafe_utils::{DangerousCell, Unsafe};
 use mvutils::utils::{PClamp, TetrahedronOp};
 use mvutils::{enum_val_ref, lazy};
 use num_traits::Num;
-use parking_lot::RwLock;
+use std::any::TypeId;
 use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::ops::{Add, Deref, DerefMut};
 use std::rc::Rc;
-use std::sync::Arc;
 
 lazy! {
     pub static DEFAULT_STYLE: UiStyle = UiStyle {

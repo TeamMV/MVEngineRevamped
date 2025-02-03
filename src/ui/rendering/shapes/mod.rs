@@ -1,5 +1,5 @@
-use crate::ui::render::shapes::lexer::{NumberLit, Token, TokenStream};
 use hashbrown::HashMap;
+use crate::ui::rendering::shapes::lexer::{NumberLit, Token, TokenStream};
 
 pub mod lexer;
 pub mod shape_gen;

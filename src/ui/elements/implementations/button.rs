@@ -1,6 +1,5 @@
 use mvutils::unsafe_utils::Unsafe;
 use mvutils::utils::Percentage;
-use mvcore::input::InputProcessor;
 use crate::ui::anim::{easing, ElementAnimationInfo, FillMode};
 use crate::ui::attributes::Attributes;
 use crate::ui::context::UiContext;
@@ -8,9 +7,8 @@ use crate::ui::ease::{Easing, EasingGen, EasingMode};
 use crate::ui::elements::{UiElement, UiElementCallbacks, UiElementState, UiElementStub};
 use crate::ui::elements::child::Child;
 use crate::ui::elements::components::ElementBody;
-use crate::ui::render::ctx::DrawContext2D;
+use crate::ui::rendering::ctx::DrawContext2D;
 use crate::ui::styles::{Dimension, Interpolator, UiStyle, EMPTY_STYLE};
-use crate::ui::{anim, ui};
 use crate::ui::timing::{AnimationState, DurationTask, TIMING_MANAGER};
 
 #[derive(Clone)]
@@ -117,32 +115,32 @@ impl Button {
 
 impl UiElementCallbacks for Button {
     fn draw(&mut self, ctx: &mut DrawContext2D) {
-        let tmp = ui().input();
-        let input = tmp.get();
-        let (mx, my) = (input.positions[0], input.positions[1]);
-        if self.inside(mx, my) {
-            if let State::Out = self.hover_state {
-                self.hover_state = State::In;
-                self.initial_style = self.style.clone();
-                if self.fade_time == 0 {
-                    self.style.clone_from(&self.hover_style);
-                } else {
-                    self.start_animation_in();
-                }
-            }
-        } else {
-            if let State::In = self.hover_state {
-                self.hover_state = State::Out;
-                if self.fade_time == 0 {
-                    self.style.clone_from(&self.initial_style);
-                } else {
-                    self.start_animation_out();
-                }
-            }
-        }
+
+        //todo movie into ui action processor (for each element have a fn(action: RawInputEvent))
+        //let (mx, my) = (input.positions[0], input.positions[1]);
+        //if self.inside(mx, my) {
+        //    if let State::Out = self.hover_state {
+        //        self.hover_state = State::In;
+        //        self.initial_style = self.style.clone();
+        //        if self.fade_time == 0 {
+        //            self.style.clone_from(&self.hover_style);
+        //        } else {
+        //            self.start_animation_in();
+        //        }
+        //    }
+        //} else {
+        //    if let State::In = self.hover_state {
+        //        self.hover_state = State::Out;
+        //        if self.fade_time == 0 {
+        //            self.style.clone_from(&self.initial_style);
+        //        } else {
+        //            self.start_animation_out();
+        //        }
+        //    }
+        //}
 
         let this = unsafe { Unsafe::cast_static(self) };
-        self.body.draw(this, ctx);
+        self.body.draw(this, ctx, &self.context);
         for children in &self.state.children {
             match children {
                 Child::String(_) => {}
@@ -167,7 +165,7 @@ impl UiElementStub for Button {
             style: style.clone(),
             initial_style: style.clone(),
             attributes,
-            body: ElementBody::new(context),
+            body: ElementBody::new(),
             hover_style: style,
             fade_time: 0,
             easing: easing(EasingGen::linear(), EasingMode::In),

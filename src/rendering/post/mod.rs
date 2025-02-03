@@ -1,10 +1,9 @@
-use std::mem::offset_of;
+use crate::math::vec::Vec2;
 use crate::rendering::shader::OpenGLShader;
+use gl::types::{GLsizei, GLsizeiptr, GLuint};
 use std::ops::{Deref, DerefMut};
 use std::os::raw::c_void;
 use std::ptr::null;
-use gl::types::{GLint, GLsizei, GLsizeiptr, GLuint};
-use log::error;
 
 pub struct OpenGLPostProcessShader(OpenGLShader);
 
@@ -29,8 +28,19 @@ impl DerefMut for OpenGLPostProcessShader {
 }
 
 pub struct RenderTarget {
-    pub(crate) texture: GLuint,
-    pub(crate) framebuffer: GLuint
+    pub(crate) texture_1: GLuint,
+    pub(crate) texture_2: GLuint,
+    pub(crate) framebuffer: GLuint,
+    pub(crate) renderbuffer: GLuint,
+    pub(crate) depth_texture: GLuint,
+}
+
+impl RenderTarget {
+    pub fn swap(&mut self) {
+        let tmp = self.texture_1;
+        self.texture_1 = self.texture_2;
+        self.texture_2 = tmp;
+    }
 }
 
 pub struct OpenGLPostProcessRenderer {
@@ -39,7 +49,8 @@ pub struct OpenGLPostProcessRenderer {
     screen_vertex_data: [f32; 16],
     screen_index_data: [u32; 6],
     screen_shader: OpenGLPostProcessShader,
-    target: RenderTarget
+    target: RenderTarget,
+    res: Vec2
 }
 
 impl OpenGLPostProcessRenderer {
@@ -65,7 +76,8 @@ impl OpenGLPostProcessRenderer {
                 ],
                 screen_index_data: [0, 1, 2, 2, 3, 0],
                 screen_shader,
-                target: RenderTarget { texture: 0, framebuffer: 0 },
+                target: RenderTarget { texture_1: 0, texture_2: 0, framebuffer: 0, renderbuffer: 0, depth_texture: 0 },
+                res: Vec2::new(width as f32, height as f32),
             }
         }
     }
@@ -74,19 +86,22 @@ impl OpenGLPostProcessRenderer {
         self.target = target;
     }
 
-    pub fn run_shader(&self, shader: &mut OpenGLPostProcessShader) {
+    pub fn run_shader(&mut self, shader: &mut OpenGLPostProcessShader) {
         unsafe {
-            shader.use_program();
             gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, self.target.texture);
-            //gl::ActiveTexture(gl::TEXTURE1);
-            //gl::BindTexture(gl::TEXTURE_2D, input.depth);
+            gl::BindTexture(gl::TEXTURE_2D, self.target.texture_1);
+            gl::ActiveTexture(gl::TEXTURE1);
+            gl::BindTexture(gl::TEXTURE_2D, self.target.depth_texture);
+
+            gl::DepthMask(gl::FALSE);
+            gl::DepthFunc(gl::ALWAYS);
 
             shader.uniform_1i("COLOR", 0);
-            //shader.uniform_1i("DEPTH", input.depth as i32);
+            shader.uniform_1i("DEPTH", 1);
+            shader.uniform_2fv("RES", &self.res);
 
             gl::BindFramebuffer(gl::FRAMEBUFFER, self.target.framebuffer);
-            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+            gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::TEXTURE_2D, self.target.texture_2, 0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
 
             gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
@@ -110,22 +125,23 @@ impl OpenGLPostProcessRenderer {
 
             gl::BindTexture(gl::TEXTURE_2D, 0);
         }
+        self.target.swap();
     }
 
     pub fn draw_to_screen(&self) {
         unsafe {
             self.screen_shader.use_program();
             gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, self.target.texture);
-            //gl::ActiveTexture(gl::TEXTURE1);
-            //gl::BindTexture(gl::TEXTURE_2D, input.depth);
+            gl::BindTexture(gl::TEXTURE_2D, self.target.texture_1);
 
             self.screen_shader.uniform_1i("COLOR", 0);
-            //self.screen_shader.uniform_1i("DEPTH", input.depth as i32);
 
             gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
             gl::ClearColor(0.0, 0.0, 0.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
+
+            gl::DepthMask(gl::FALSE);
+            gl::DepthFunc(gl::ALWAYS);
 
             gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.ibo);
@@ -145,6 +161,15 @@ impl OpenGLPostProcessRenderer {
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0);
 
             gl::BindTexture(gl::TEXTURE_2D, 0);
+        }
+    }
+}
+
+impl Drop for OpenGLPostProcessRenderer {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteBuffers(1, &self.vbo);
+            gl::DeleteBuffers(1, &self.ibo);
         }
     }
 }

@@ -1,12 +1,10 @@
 use mvutils::unsafe_utils::Unsafe;
-use mvcore::color::RgbColor;
 use crate::ui::attributes::Attributes;
 use crate::ui::context::UiContext;
 use crate::ui::elements::{UiElement, UiElementCallbacks, UiElementState, UiElementStub};
 use crate::ui::elements::child::Child;
 use crate::ui::elements::components::ElementBody;
-use crate::ui::render::ctx;
-use crate::ui::render::ctx::DrawContext2D;
+use crate::ui::rendering::ctx::DrawContext2D;
 use crate::ui::styles::{Dimension, UiStyle};
 
 #[derive(Clone)]
@@ -21,7 +19,7 @@ pub struct Div {
 impl UiElementCallbacks for Div {
     fn draw(&mut self, ctx: &mut DrawContext2D) {
         let this = unsafe { Unsafe::cast_static(self) };
-        self.body.draw(this, ctx);
+        self.body.draw(this, ctx, &self.context);
         for children in &self.state.children {
             match children {
                 Child::String(_) => {}
@@ -45,7 +43,7 @@ impl UiElementStub for Div {
             attributes,
             style,
             state: UiElementState::new(),
-            body: ElementBody::new(context),
+            body: ElementBody::new(),
         }
     }
 

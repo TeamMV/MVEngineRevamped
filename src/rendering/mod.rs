@@ -2,7 +2,7 @@ use crate::math::vec::{Vec2, Vec4};
 use crate::rendering::camera::OrthographicCamera;
 use crate::rendering::shader::OpenGLShader;
 use crate::window::Window;
-use gl::types::{GLsizei, GLsizeiptr, GLuint};
+use gl::types::{GLenum, GLsizei, GLsizeiptr, GLuint, GLuint64};
 use std::mem::offset_of;
 use std::os::raw::c_void;
 use std::ptr::null;
@@ -16,6 +16,7 @@ pub mod camera;
 pub mod control;
 pub mod light;
 pub mod post;
+pub mod bindless;
 
 #[repr(C)]
 #[derive(Clone)]
@@ -62,17 +63,63 @@ pub struct Vertex {
     pub has_texture: f32,
 }
 
-pub struct Triangle {
-    pub points: [Vertex; 3],
+impl Vertex {
+    pub fn from_inp(value: &InputVertex, tex_idx: f32) -> Self {
+        Vertex {
+            transform: value.transform.clone(),
+            pos: value.pos,
+            color: value.color.clone(),
+            uv: value.uv,
+            texture: tex_idx,
+            has_texture: value.has_texture,
+        }
+    }
 }
 
+#[derive(Clone)]
+pub struct InputVertex {
+    pub transform: Transform,
+    pub pos: (f32, f32, f32),
+    pub color: Vec4,
+    pub uv: (f32, f32),
+    pub texture: GLuint,
+    pub has_texture: f32,
+}
+
+#[derive(Clone)]
+pub struct Triangle {
+    pub points: [InputVertex; 3],
+}
+
+impl Triangle {
+    pub fn center(&self) -> (i32, i32) {
+        (
+            ((self.points[0].pos.0 + self.points[1].pos.0 + self.points[2].pos.0) / 3.0) as i32,
+            ((self.points[0].pos.1 + self.points[1].pos.1 + self.points[2].pos.1) / 3.0) as i32,
+        )
+    }
+
+    pub fn vec2s(&self) -> [Vec2; 3] {
+        [
+            Vec2::new(self.points[0].pos.0, self.points[0].pos.1),
+            Vec2::new(self.points[1].pos.0, self.points[1].pos.1),
+            Vec2::new(self.points[2].pos.0, self.points[2].pos.1),
+        ]
+    }
+}
+
+#[derive(Clone)]
 pub struct Quad {
-    pub points: [Vertex; 4],
+    pub points: [InputVertex; 4],
 }
 
 pub trait PrimitiveRenderer {
-    fn draw_data(&mut self, window: &Window, camera: &OrthographicCamera, vertices: &[u8], indices: &[u32], textures: &[f32], vbo: GLuint, ibo: GLuint, amount: u32, shader: &mut OpenGLShader);
-    fn draw_data_to_target(&mut self, window: &Window, camera: &OrthographicCamera, vertices: &[u8], indices: &[u32], textures: &[f32], vbo: GLuint, ibo: GLuint, amount: u32, shader: &mut OpenGLShader, post: &mut RenderTarget);
+    fn begin_frame(&mut self);
+    fn end_frame(&mut self);
+    fn begin_frame_to_target(&mut self, post: &mut RenderTarget);
+    fn end_frame_to_target(&mut self, post: &mut RenderTarget);
+    fn draw_data(&mut self, window: &Window, camera: &OrthographicCamera, vertices: &[u8], indices: &[u32], textures: &[GLuint], vbo: GLuint, ibo: GLuint, amount: u32, amount_textures: usize, shader: &mut OpenGLShader);
+    fn draw_data_to_target(&mut self, window: &Window, camera: &OrthographicCamera, vertices: &[u8], indices: &[u32], textures: &[GLuint], vbo: GLuint, ibo: GLuint, amount: u32, amount_textures: usize, shader: &mut OpenGLShader, post: &mut RenderTarget);
 }
 
 pub struct OpenGLRenderer;
@@ -88,7 +135,23 @@ impl OpenGLRenderer {
 }
 
 impl PrimitiveRenderer for OpenGLRenderer {
-    fn draw_data(&mut self, window: &Window, camera: &OrthographicCamera, vertices: &[u8], indices: &[u32], textures: &[f32], vbo: GLuint, ibo: GLuint, amount: u32, shader: &mut OpenGLShader) {
+    fn begin_frame(&mut self) {
+
+    }
+
+    fn end_frame(&mut self) {
+
+    }
+
+    fn begin_frame_to_target(&mut self, post: &mut RenderTarget) {
+
+    }
+
+    fn end_frame_to_target(&mut self, post: &mut RenderTarget) {
+
+    }
+
+    fn draw_data(&mut self, window: &Window, camera: &OrthographicCamera, vertices: &[u8], indices: &[u32], textures: &[GLuint], vbo: GLuint, ibo: GLuint, amount: u32, amount_textures: usize, shader: &mut OpenGLShader) {
         unsafe {
             gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
             gl::BufferData(gl::ARRAY_BUFFER, vertices.len() as GLsizeiptr, vertices.as_ptr() as *const _, gl::DYNAMIC_DRAW);
@@ -102,7 +165,8 @@ impl PrimitiveRenderer for OpenGLRenderer {
             shader.uniform_1f("uResY", window.info.height as f32);
             shader.uniform_matrix_4fv("uProjection", &camera.get_projection());
             shader.uniform_matrix_4fv("uView", &camera.get_view());
-            shader.uniform_1fv("TEX_SAMPLER", &textures);
+
+
 
             let stride = batch::VERTEX_SIZE_BYTES as GLsizei;
 
@@ -135,7 +199,7 @@ impl PrimitiveRenderer for OpenGLRenderer {
         }
     }
 
-    fn draw_data_to_target(&mut self, window: &Window, camera: &OrthographicCamera, vertices: &[u8], indices: &[u32], textures: &[f32], vbo: GLuint, ibo: GLuint, amount: u32, shader: &mut OpenGLShader, post: &mut RenderTarget) {
+    fn draw_data_to_target(&mut self, window: &Window, camera: &OrthographicCamera, vertices: &[u8], indices: &[u32], textures: &[GLuint], vbo: GLuint, ibo: GLuint, amount: u32, amount_textures: usize, shader: &mut OpenGLShader, post: &mut RenderTarget) {
         todo!()
     }
 }

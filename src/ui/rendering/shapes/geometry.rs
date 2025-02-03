@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use mvcore::math::vec::Vec2;
+use crate::math::vec::Vec2;
 
 trait Closeable {
     const EPSILON: Self;

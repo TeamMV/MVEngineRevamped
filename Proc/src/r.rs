@@ -90,13 +90,13 @@ pub fn r(input: TokenStream) -> TokenStream {
     let r_ident = Ident::new(struct_name, Span::call_site());
 
     let mv_ts = if !is_mv {
-        quote! { pub mv: &'static mvengine_ui::res::MVR, }
+        quote! { pub mv: &'static mvengine::ui::res::MVR, }
     } else {
         quote! {}
     };
 
     let mv_gen_ts = if !is_mv {
-        quote! { mv: &mvengine_ui::res::MVR, }
+        quote! { mv: &mvengine::ui::res::MVR, }
     } else {
         quote! {}
     };
@@ -109,9 +109,9 @@ pub fn r(input: TokenStream) -> TokenStream {
         &mut res_gens_ts,
         struct_name,
         "color",
-        "mvcore::color::RgbColor",
+        "mvengine::color::RgbColor",
         colors,
-        |lit| { quote! { mvcore::color::parse::parse_color(#lit).unwrap(), } }
+        |lit| { quote! { mvengine::color::parse::parse_color(#lit).unwrap(), } }
     );
     let (shape_struct_ts, shape_resolve_fn_ts) = extent_resource(
         is_mv,
@@ -119,14 +119,14 @@ pub fn r(input: TokenStream) -> TokenStream {
         &mut res_gens_ts,
         struct_name,
         "shape",
-        "mvengine_ui::render::ctx::DrawShape",
+        "mvengine::ui::rendering::ctx::DrawShape",
         shapes,
         |lit| {
             let path = get_src(cdir.as_str(), lit);
             quote! {
                 {
-                    let ast = mvengine_ui::render::shapes::ShapeParser::parse(include_str!(#path)).unwrap();
-                    mvengine_ui::render::shapes::shape_gen::ShapeGenerator::generate(ast).unwrap()
+                    let ast = mvengine::ui::rendering::shapes::ShapeParser::parse(include_str!(#path)).unwrap();
+                    mvengine::ui::rendering::shapes::shape_gen::ShapeGenerator::generate(ast).unwrap()
                 },
             }
         }
@@ -137,14 +137,14 @@ pub fn r(input: TokenStream) -> TokenStream {
         &mut res_gens_ts,
         struct_name,
         "adaptive",
-        "mvengine_ui::render::adaptive::AdaptiveShape",
+        "mvengine::ui::rendering::adaptive::AdaptiveShape",
         adaptives,
         |lit| {
             let path = get_src(cdir.as_str(), lit);
             quote! {
                 {
-                    let ast = mvengine_ui::render::shapes::ShapeParser::parse(include_str!(#path)).unwrap();
-                    mvengine_ui::render::shapes::shape_gen::ShapeGenerator::generate_adaptive(ast).unwrap()
+                    let ast = mvengine::ui::rendering::shapes::ShapeParser::parse(include_str!(#path)).unwrap();
+                    mvengine::ui::rendering::shapes::shape_gen::ShapeGenerator::generate_adaptive(ast).unwrap()
                 },
             }
         }
@@ -155,17 +155,13 @@ pub fn r(input: TokenStream) -> TokenStream {
         &mut res_gens_ts,
         struct_name,
         "texture",
-        "mvcore::render::texture::Texture",
+        "mvengine::rendering::texture::Texture",
         textures,
         |lit| {
             let path = get_src(cdir.as_str(), lit);
             quote! {
                 {
-                    let handle = manager.include_asset(include_bytes!(#path), mvcore::asset::asset::AssetType::Texture);
-                    handle.load(|asset, idk| {});
-                    handle.wait();
-                    let asset = handle.get();
-                    let tex = asset.as_texture().expect(&format!("Cannot load texture '{}'", #path));
+                    let tex = mvengine::rendering::texture::Texture::from_bytes(include_bytes!(#path)).expect("Cannot load texture!");
                     tex
                 },
             }
@@ -175,7 +171,7 @@ pub fn r(input: TokenStream) -> TokenStream {
 
     let init_fn_ts = if !is_mv {
         quote! {
-            mvengine_ui::res::MVR::_initialize(manager.clone());
+            mvengine::ui::res::MVR::initialize();
             #r_ident.create(|| #r_ident {
                 #mv_gen_ts
                 #res_gens_ts
@@ -209,17 +205,12 @@ pub fn r(input: TokenStream) -> TokenStream {
         unsafe impl Sync for #r_ident {}
 
         impl #r_ident {
-            pub fn initialize(device: mvcore::render::backend::device::Device) {
-                let manager = mvcore::asset::manager::AssetManager::new(device, 1, 1);
-                Self::_initialize(manager);
-            }
-
-            pub fn _initialize(manager: std::sync::Arc<mvcore::asset::manager::AssetManager>) {
+            pub fn initialize() {
                 #init_fn_ts
             }
         }
 
-        impl mvengine_ui::context::UiResources for #r_ident {
+        impl mvengine::ui::context::UiResources for #r_ident {
             #color_resolve_fn_ts
             #shape_resolve_fn_ts
             #adaptive_resolve_fn_ts
@@ -261,7 +252,7 @@ fn extent_resource<F>(
         let ident = Ident::new(entry.0.as_str(), Span::call_site());
         if !is_mv {
             gens_ts.extend(quote! {
-                #ident: #index + mvengine_ui::res::CR,
+                #ident: #index + mvengine::ui::res::CR,
             });
         } else {
             gens_ts.extend(quote! {
@@ -292,8 +283,8 @@ fn extent_resource<F>(
     let res_fn_ts = if !is_mv {
         quote! {
             fn #fn_ident(&self, id: usize) -> Option<&#type_path> {
-                if id >= mvengine_ui::res::CR {
-                    self.#field_ident.#res_arr_ident.get(id - mvengine_ui::res::CR)
+                if id >= mvengine::ui::res::CR {
+                    self.#field_ident.#res_arr_ident.get(id - mvengine::ui::res::CR)
                 } else {
                     self.mv.#fn_ident(id)
                 }

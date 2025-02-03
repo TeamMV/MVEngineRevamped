@@ -1,4 +1,4 @@
-use uiproc::r;
+use mvengine_proc_macro::r;
 
 use crate as mvengine_ui;
 
@@ -6,8 +6,10 @@ pub mod err;
 
 pub const CR: usize = usize::MAX / 2; //Custom Resources start
 
+use crate as mvengine;
+
 r! {
-    <resources structName="MVR" cdir="../../resources/" superSecretTagWhichSpecifiesThisIsTheMVResourceStruct="andItsSuperSecretValue">
+    <resources structName="MVR" cdir="./" superSecretTagWhichSpecifiesThisIsTheMVResourceStruct="andItsSuperSecretValue">
         <colors>
             <color name="white" val="white"/>
             <color name="black" val="black"/>

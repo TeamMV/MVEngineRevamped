@@ -1,6 +1,6 @@
 #version 450
 
-in vec2 fUv;
+layout (location = 0) in vec2 fUv;
 
 layout(location = 0) out vec4 outColor;
 

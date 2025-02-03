@@ -1,8 +1,8 @@
-use mvcore::color::RgbColor;
-use mvcore::render::texture::DrawTexture;
-use mve2d::gpu::Transform;
-use mve2d::renderer2d::{InputTriangle, SamplerType};
-use crate::ui::render::ctx::{DrawShape, TextureCtx, TransformCtx};
+use mvutils::utils::TetrahedronOp;
+use crate::color::RgbColor;
+use crate::rendering::texture::Texture;
+use crate::rendering::{InputVertex, Transform, Triangle, Vertex};
+use crate::ui::rendering::ctx::{DrawShape, TextureCtx, TransformCtx};
 
 pub enum ArcTriPoint {
     Last,
@@ -18,8 +18,7 @@ pub struct ArcCtx {
     global_color: RgbColor,
     transform: Transform,
     custom_origin: bool,
-    texture: Option<DrawTexture>,
-    sampler: SamplerType,
+    texture: Option<Texture>,
     blending: f32,
     z: f32,
 }
@@ -31,11 +30,10 @@ impl ArcCtx {
             radius: 0,
             triangle_count: 50,
             angle: 90.0,
-            global_color: RgbColor::white(),
+            global_color: RgbColor::transparent(),
             transform: Transform::new(),
             custom_origin: false,
             texture: None,
-            sampler: SamplerType::Linear,
             blending: 0.0,
             z: f32::INFINITY,
         }
@@ -80,7 +78,6 @@ impl ArcCtx {
     pub fn texture(mut self, texture: TextureCtx) -> Self {
         self.texture = texture.texture;
         self.blending = texture.blending;
-        self.sampler = texture.sampler;
         self
     }
 
@@ -92,7 +89,7 @@ impl ArcCtx {
 
         let mut tris = Vec::with_capacity(self.triangle_count as usize);
 
-        let tex_id = if let Some(_) = self.texture { Some(0) } else { None };
+        let tex_id = if let Some(ref t) = self.texture { t.id } else { 0 };
 
         let rad = self.radius as f32;
         let step_size = self.angle / self.triangle_count as f32;
@@ -114,19 +111,36 @@ impl ArcCtx {
                 let current_u = 0.5 + (x as f32 - self.center.0 as f32) / (2.0 * self.radius as f32);
                 let current_v = 0.5 + (y as f32 - self.center.1 as f32) / (2.0 * self.radius as f32);
 
-                Some([(last_u, last_v), (center_u, center_v), (current_u, current_v)])
-            } else { None };
+                [(last_u, last_v), (center_u, center_v), (current_u, current_v)]
+            } else { [(0.0, 0.0), (0.0, 0.0), (0.0, 0.0)] };
 
-            let tri = InputTriangle {
-                points: [(last_x, last_y), self.center, (x, y)],
-                z: self.z,
-                transform: self.transform.clone(),
-                canvas_transform: Transform::new(),
-                tex_id,
-                tex_coords,
-                blending: 0.0,
-                colors: [self.global_color.as_vec4(), self.global_color.as_vec4(), self.global_color.as_vec4()],
-                is_font: false,
+            let tri = Triangle {
+                points: [
+                    InputVertex {
+                        transform: self.transform.clone(),
+                        pos: (last_x as f32, last_y as f32, self.z),
+                        color: self.global_color.as_vec4(),
+                        uv: tex_coords[0],
+                        texture: tex_id,
+                        has_texture: self.texture.is_some().yn(1.0, 0.0),
+                    },
+                    InputVertex {
+                        transform: self.transform.clone(),
+                        pos: (self.center.0 as f32, self.center.1 as f32, self.z),
+                        color: self.global_color.as_vec4(),
+                        uv: tex_coords[1],
+                        texture: tex_id,
+                        has_texture: self.texture.is_some().yn(1.0, 0.0),
+                    },
+                    InputVertex {
+                        transform: self.transform.clone(),
+                        pos: (x as f32, y as f32, self.z),
+                        color: self.global_color.as_vec4(),
+                        uv: tex_coords[2],
+                        texture: tex_id,
+                        has_texture: self.texture.is_some().yn(1.0, 0.0),
+                    }
+                ],
             };
             tris.push(tri);
 
@@ -134,14 +148,8 @@ impl ArcCtx {
             last_y = y;
         }
 
-        let mut textures = Vec::new();
-        if let Some(ref tex) = self.texture {
-            textures.push((tex.get_texture(), self.sampler));
-        }
-
         DrawShape {
             triangles: tris,
-            textures,
             extent: (0, 0),
         }
     }

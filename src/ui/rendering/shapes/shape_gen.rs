@@ -1,13 +1,13 @@
 use std::thread::current;
 use hashbrown::HashMap;
 use mvutils::unsafe_utils::Unsafe;
-use mvcore::math::vec::Vec2;
-use mve2d::gpu::Transform;
-use crate::ui::render::adaptive::AdaptiveShape;
-use crate::ui::render::ctx;
-use crate::ui::render::ctx::{triangle, DrawShape};
-use crate::ui::render::shapes::{Assignment, Ast, Command, Param, ParsedStruct, StructValue};
-use crate::ui::render::shapes::modifier::boolean;
+use crate::math::vec::Vec2;
+use crate::rendering::Transform;
+use crate::ui::rendering::adaptive::AdaptiveShape;
+use crate::ui::rendering::ctx;
+use crate::ui::rendering::ctx::DrawShape;
+use crate::ui::rendering::shapes::{Assignment, Ast, Command, Param, ParsedStruct, StructValue};
+use crate::ui::rendering::shapes::modifier::boolean;
 
 fn parse_vec2(parsed_struct: &ParsedStruct) -> Result<Vec2, String> {
     let mut vec2 = Vec2::new(0.0, 0.0);

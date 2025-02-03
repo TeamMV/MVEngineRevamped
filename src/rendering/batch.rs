@@ -3,9 +3,9 @@ use crate::rendering::post::RenderTarget;
 use crate::rendering::shader::OpenGLShader;
 use crate::rendering::{PrimitiveRenderer, Quad, Triangle, Vertex};
 use crate::window::Window;
-use gl::types::GLuint;
+use gl::types::{GLuint, GLuint64};
 
-pub const BATCH_VERTEX_AMOUNT: usize = 1_000;
+pub const BATCH_VERTEX_AMOUNT: usize = 100_000;
 
 pub const VERTEX_SIZE_BYTES: usize = size_of::<Vertex>();
 pub const VERTEX_SIZE: usize = VERTEX_SIZE_BYTES / 4;
@@ -13,9 +13,10 @@ pub const VERTEX_SIZE: usize = VERTEX_SIZE_BYTES / 4;
 pub const MAX_TEXTURES: usize = 16;
 
 pub(crate) struct RenderBatch {
-    pub(crate) vertex_data: [u8; VERTEX_SIZE_BYTES * BATCH_VERTEX_AMOUNT],
-    pub(crate) index_data: [u32; BATCH_VERTEX_AMOUNT * 6],
-    pub(crate) texture_data: [f32; MAX_TEXTURES],
+    pub(crate) vertex_data: Vec<u8>, // VERTEX_SIZE_BYTES * BATCH_VERTEX_AMOUNT
+    pub(crate) index_data: Vec<u32>, // BATCH_VERTEX_AMOUNT * 6
+    pub(crate) texture_data: [GLuint; MAX_TEXTURES],
+    vertex_data_index: usize,
     vertex_index: usize,
     index_index: usize,
     texture_index: usize,
@@ -36,9 +37,10 @@ impl RenderBatch {
         gl::GetIntegerv(gl::MAX_TEXTURE_IMAGE_UNITS, &mut texture_units);
 
         Self {
-            vertex_data: [0; VERTEX_SIZE_BYTES * BATCH_VERTEX_AMOUNT],
-            index_data: [0; BATCH_VERTEX_AMOUNT * 6],
-            texture_data: [0.0; MAX_TEXTURES],
+            vertex_data: vec![0; VERTEX_SIZE_BYTES * BATCH_VERTEX_AMOUNT],
+            index_data: vec![0; BATCH_VERTEX_AMOUNT * 6],
+            texture_data: [0; MAX_TEXTURES],
+            vertex_data_index: 0,
             vertex_index: 0,
             index_index: 0,
             texture_index: 0,
@@ -49,52 +51,78 @@ impl RenderBatch {
         }
     }
 
-    pub(crate) fn push_triangle(&mut self, triangle: Triangle) {
-        for vertex in triangle.points.iter() {
+    pub(crate) fn push_triangle(&mut self, mut triangle: Triangle) {
+        for (idx, vertex) in triangle.points.into_iter().enumerate() {
+            let mut r_vertex = Vertex::from_inp(&vertex, 0.0);
+            if r_vertex.has_texture == 1.0 {
+                let req_id = vertex.texture;
+                if let Some(idx) = self.texture_data.iter().position(|id| *id == req_id) {
+                    r_vertex.texture = idx as f32;
+                } else {
+                    r_vertex.texture = self.texture_index as f32;
+                    self.texture_data[self.texture_index] = req_id;
+                    self.texture_index += 1;
+                }
+            }
+
             unsafe {
-                let src_ptr = vertex as *const Vertex as *const u8;
-                let dst_ptr = self.vertex_data.as_mut_ptr().add(self.vertex_index) as *mut u8;
+                let src_ptr = &r_vertex as *const Vertex as *const u8;
+                let dst_ptr = self.vertex_data.as_mut_ptr().add(self.vertex_data_index) as *mut u8;
 
                 std::ptr::copy_nonoverlapping(src_ptr, dst_ptr, VERTEX_SIZE_BYTES);
 
-                self.vertex_index += VERTEX_SIZE_BYTES;
+                self.vertex_data_index += VERTEX_SIZE_BYTES;
             }
         }
 
-        self.index_data[self.index_index + 0] = self.triangle_index as u32 + 0;
-        self.index_data[self.index_index + 1] = self.triangle_index as u32 + 1;
-        self.index_data[self.index_index + 2] = self.triangle_index as u32 + 2;
+        self.index_data[self.index_index + 0] = self.vertex_index as u32 + 0;
+        self.index_data[self.index_index + 1] = self.vertex_index as u32 + 1;
+        self.index_data[self.index_index + 2] = self.vertex_index as u32 + 2;
 
         self.index_index += 3;
         self.triangle_index += 1;
+        self.vertex_index += 3;
     }
 
-    pub(crate) fn push_quad(&mut self, quad: Quad) {
-        for vertex in quad.points.iter() {
+    pub(crate) fn push_quad(&mut self, mut quad: Quad) {
+        for (idx, vertex) in quad.points.into_iter().enumerate() {
+            let mut r_vertex = Vertex::from_inp(&vertex, 0.0);
+            if r_vertex.has_texture == 1.0 {
+                let req_id = vertex.texture;
+                if let Some(idx) = self.texture_data.iter().position(|id| *id == req_id) {
+                    r_vertex.texture = idx as f32;
+                } else {
+                    r_vertex.texture = self.texture_index as f32;
+                    self.texture_data[self.texture_index] = req_id;
+                    self.texture_index += 1;
+                }
+            }
+
             unsafe {
-                let src_ptr = vertex as *const Vertex as *const u8;
-                let dst_ptr = self.vertex_data.as_mut_ptr().add(self.vertex_index) as *mut u8;
+                let src_ptr = &r_vertex as *const Vertex as *const u8;
+                let dst_ptr = self.vertex_data.as_mut_ptr().add(self.vertex_data_index) as *mut u8;
 
                 std::ptr::copy_nonoverlapping(src_ptr, dst_ptr, VERTEX_SIZE_BYTES);
 
-                self.vertex_index += VERTEX_SIZE_BYTES;
+                self.vertex_data_index += VERTEX_SIZE_BYTES;
             }
         }
 
-        self.index_data[self.index_index + 0] = self.triangle_index as u32 + 0;
-        self.index_data[self.index_index + 1] = self.triangle_index as u32 + 1;
-        self.index_data[self.index_index + 2] = self.triangle_index as u32 + 2;
+        self.index_data[self.index_index + 0] = self.vertex_index as u32 + 0;
+        self.index_data[self.index_index + 1] = self.vertex_index as u32 + 1;
+        self.index_data[self.index_index + 2] = self.vertex_index as u32 + 2;
 
-        self.index_data[self.index_index + 3] = self.triangle_index as u32 + 2;
-        self.index_data[self.index_index + 4] = self.triangle_index as u32 + 3;
-        self.index_data[self.index_index + 5] = self.triangle_index as u32 + 0;
+        self.index_data[self.index_index + 3] = self.vertex_index as u32 + 2;
+        self.index_data[self.index_index + 4] = self.vertex_index as u32 + 3;
+        self.index_data[self.index_index + 5] = self.vertex_index as u32 + 0;
 
         self.index_index += 6;
         self.triangle_index += 2;
+        self.vertex_index += 4;
     }
 
     fn has_texture(&self, id: GLuint) -> bool {
-        self.texture_data.contains(&(id as f32))
+        self.texture_data.contains(&id)
     }
 
     pub fn can_hold_triangle(&self, triangle: &Triangle) -> bool {
@@ -104,7 +132,7 @@ impl RenderBatch {
         let mut seen = Vec::new();
         for vertex in &triangle.points {
             if vertex.has_texture == 1.0 {
-                if !seen.contains(&vertex.texture) && !self.has_texture(vertex.texture as GLuint) {
+                if !seen.contains(&vertex.texture) && !self.has_texture(vertex.texture) {
                     needed_tex += 1;
                     seen.push(vertex.texture);
                 }
@@ -125,7 +153,7 @@ impl RenderBatch {
         let mut seen = Vec::new();
         for vertex in &quad.points {
             if vertex.has_texture == 1.0 {
-                if !seen.contains(&vertex.texture) && !self.has_texture(vertex.texture as GLuint) {
+                if !seen.contains(&vertex.texture) && !self.has_texture(vertex.texture) {
                     needed_tex += 1;
                     seen.push(vertex.texture);
                 }
@@ -140,14 +168,16 @@ impl RenderBatch {
     }
 
     pub(crate) fn prepare_batch(&mut self) {
+        self.vertex_data_index = 0;
         self.vertex_index = 0;
         self.index_index = 0;
         self.triangle_index = 0;
         self.texture_index = 0;
+        self.texture_data.fill(0);
     }
 
     pub fn is_empty(&self) -> bool {
-        self.vertex_index == 0
+        self.vertex_data_index == 0
     }
 
     pub fn draw(&mut self, window: &Window, camera: &OrthographicCamera, renderer: &mut impl PrimitiveRenderer, shader: &mut OpenGLShader) {
@@ -160,6 +190,7 @@ impl RenderBatch {
             self.vbo_id,
             self.ibo_id,
             self.triangle_index as u32 * 3,
+            self.texture_index,
             shader
         );
         self.prepare_batch();
@@ -175,9 +206,19 @@ impl RenderBatch {
             self.vbo_id,
             self.ibo_id,
             self.triangle_index as u32 * 3,
+            self.texture_index,
             shader,
             post
         );
         self.prepare_batch();
+    }
+}
+
+impl Drop for RenderBatch {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteBuffers(1, &self.vbo_id);
+            gl::DeleteBuffers(1, &self.ibo_id);
+        }
     }
 }

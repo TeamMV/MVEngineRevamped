@@ -1,16 +1,15 @@
-use mvcore::color::RgbColor;
-use mvcore::render::texture::DrawTexture;
-use mve2d::gpu::Transform;
-use mve2d::renderer2d::{InputTriangle, SamplerType};
-use crate::ui::render::ctx::{DrawShape, TextureCtx, TransformCtx};
+use mvutils::utils::TetrahedronOp;
+use crate::color::RgbColor;
+use crate::rendering::texture::Texture;
+use crate::rendering::{InputVertex, Transform, Triangle, Vertex};
+use crate::ui::rendering::ctx::{DrawShape, TextureCtx, TransformCtx};
 
 pub struct TriangleCtx {
     points: Vec<(i32, i32, Option<RgbColor>)>,
     global_color: RgbColor,
     transform: Transform,
     custom_origin: bool,
-    texture: Option<DrawTexture>,
-    sampler: SamplerType,
+    texture: Option<Texture>,
     blending: f32,
     z: f32,
 }
@@ -23,7 +22,6 @@ impl TriangleCtx {
             transform: Transform::new(),
             custom_origin: false,
             texture: None,
-            sampler: SamplerType::Linear,
             blending: 0.0,
             z: f32::INFINITY,
         }
@@ -53,7 +51,6 @@ impl TriangleCtx {
     pub fn texture(mut self, texture: TextureCtx) -> Self {
         self.texture = texture.texture;
         self.blending = texture.blending;
-        self.sampler = texture.sampler;
         self
     }
 
@@ -72,7 +69,7 @@ impl TriangleCtx {
             self.transform.origin.y = (p1.1 + p2.1 + p3.1) as f32 / 3.0;
         }
 
-        let tex_id = if let Some(_) = self.texture { Some(0) } else { None };
+        let tex_id = if let Some(ref t) = self.texture { t.id } else { 0 };
         let tex_coords = if let Some(ref tex) = self.texture {
             let uv: [(f32, f32); 4] = tex.get_uv();
 
@@ -93,27 +90,39 @@ impl TriangleCtx {
             Some([(u1, v1), (u2, v2), (u3, v3)])
         } else { None };
 
-        let tri = InputTriangle {
-            points: [(p1.0, p1.1), (p2.0, p2.1), (p3.0, p3.1)],
-            z: self.z,
-            transform: self.transform,
-            canvas_transform: Transform::new(),
-            tex_id,
-            tex_coords,
-            blending: 0.0,
-            colors: [c1.as_vec4(), c2.as_vec4(), c3.as_vec4()],
-            is_font: false,
+        let tri = Triangle {
+            points: [
+                InputVertex {
+                    transform: self.transform.clone(),
+                    pos: (p1.0 as f32, p1.1 as f32, self.z),
+                    color: c1.as_vec4(),
+                    uv: tex_coords.unwrap_or_default()[0],
+                    texture: tex_id,
+                    has_texture: self.texture.is_some().yn(1.0, 0.0),
+                },
+                InputVertex {
+                    transform: self.transform.clone(),
+                    pos: (p2.0 as f32, p2.1 as f32, self.z),
+                    color: c2.as_vec4(),
+                    uv: tex_coords.unwrap_or_default()[1],
+                    texture: tex_id,
+                    has_texture: self.texture.is_some().yn(1.0, 0.0),
+                },
+                InputVertex {
+                    transform: self.transform.clone(),
+                    pos: (p3.0 as f32, p3.1 as f32, self.z),
+                    color: c3.as_vec4(),
+                    uv: tex_coords.unwrap_or_default()[2],
+                    texture: tex_id,
+                    has_texture: self.texture.is_some().yn(1.0, 0.0),
+                },
+            ],
         };
-
-        let mut textures = Vec::new();
-        if let Some(ref tex) = self.texture {
-            textures.push((tex.get_texture(), self.sampler));
-        }
 
         DrawShape {
             triangles: vec![tri],
-            textures,
             extent: (0, 0),
         }
     }
+
 }

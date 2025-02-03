@@ -1,14 +1,5 @@
-use std::ops::Deref;
-use mvcore::asset::asset::AssetType;
-use mvcore::asset::manager::{AssetHandle, AssetManager};
-use mvcore::render::backend::device::Device;
-use mvcore::render::backend::image::Image;
-use mvcore::render::texture::Texture;
-use crate::ui::elements::{UiElement, UiElementStub};
-use crate::ui::geometry::Rect;
-use crate::ui::render::ctx::{DrawContext2D, DrawShape};
-use crate::ui::resolve;
-use crate::ui::styles::{BackgroundRes, ShapeStyle, DEFAULT_STYLE};
+use crate::ui::elements::UiElementStub;
+use crate::ui::rendering::ctx::DrawShape;
 
 pub const EDGE_LEFT: usize = 0;
 pub const EDGE_TOP: usize = 1;

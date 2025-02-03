@@ -1,3 +1,6 @@
+use std::sync::Arc;
+use log::__private_api::loc;
+use parking_lot::Mutex;
 use crate::input::{Input, RawInputEvent};
 use crate::input::registry::ActionInputProcessor;
 
@@ -18,7 +21,7 @@ pub trait InputProcessor {
 
 pub struct InputCollector {
     pub(crate) action_processor: ActionInputProcessor,
-    targets: Vec<Box<dyn InputProcessor>>
+    targets: Vec<Arc<Mutex<dyn InputProcessor>>>
 }
 
 impl InputCollector {
@@ -29,11 +32,16 @@ impl InputCollector {
         }
     }
 
+    pub fn register_new_event_target(&mut self, target: Arc<Mutex<dyn InputProcessor>>) {
+        self.targets.push(target);
+    }
+
     pub fn dispatch_input(&mut self, action: RawInputEvent, input: &Input) {
         self.action_processor.digest_action(action, input);
         for target in &mut self.targets {
-            if target.is_enabled() {
-                target.digest_action(action, input);
+            let mut lock = target.lock();
+            if lock.is_enabled() {
+                lock.digest_action(action, input);
             }
         }
     }
@@ -41,8 +49,9 @@ impl InputCollector {
     pub fn end_frame(&mut self) {
         self.action_processor.end_frame();
         for target in &mut self.targets {
-            if target.is_enabled() {
-                target.end_frame();
+            let mut lock = target.lock();
+            if lock.is_enabled() {
+                lock.end_frame();
             }
         }
     }

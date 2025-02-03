@@ -258,3 +258,15 @@ impl OpenGLShader {
         }
     }
 }
+
+impl Drop for OpenGLShader {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DetachShader(self.program_id, self.vertex_shader);
+            gl::DetachShader(self.program_id, self.fragment_shader);
+            gl::DeleteShader(self.vertex_shader);
+            gl::DeleteShader(self.fragment_shader);
+            gl::DeleteProgram(self.program_id);
+        }
+    }
+}
