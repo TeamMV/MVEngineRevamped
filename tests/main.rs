@@ -10,12 +10,12 @@ use mvengine::rendering::post::{OpenGLPostProcessRenderer, OpenGLPostProcessShad
 use mvengine::rendering::shader::light::LightOpenGLShader;
 use mvengine::rendering::{InputVertex, Quad, Transform, Triangle, Vertex};
 use mvengine::window::app::WindowCallbacks;
-use mvengine::window::{UninitializedWindow, Window, WindowCreateInfo};
+use mvengine::window::{Error, UninitializedWindow, Window, WindowCreateInfo};
 use mvutils::once::CreateOnce;
 use std::hash::Hash;
 use mvengine::rendering::texture::Texture;
 
-pub fn main() -> Result<(), ()> {
+pub fn main() -> Result<(), Error> {
     mvlogger::init(std::io::stdout(), LevelFilter::Trace);
     let mut info = WindowCreateInfo::default();
     info.title = "Window demo".to_string();

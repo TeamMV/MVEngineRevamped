@@ -1,19 +1,17 @@
 pub mod app;
 
-use std::mem;
-use std::ops::FromResidual;
+use crate::input::consts::Key;
+use crate::input::{Input, KeyboardAction, MouseAction, RawInputEvent};
+use crate::ui::Ui;
 use crate::window::app::WindowCallbacks;
-use std::time::SystemTime;
-use glutin::{ContextError, CreationError, ElementState, Event, MonitorId, MouseButton, MouseScrollDelta, VirtualKeyCode, WindowBuilder};
 use hashbrown::HashSet;
 use mvutils::once::CreateOnce;
 use mvutils::remake::Remake;
-use mvutils::unsafe_utils::{DangerousCell, Unsafe};
-use crate::input::collect::InputCollector;
-use crate::input::{Input, KeyboardAction, MouseAction, RawInputEvent};
-use crate::input::consts::{Key};
-use crate::rendering::bindless;
-use crate::ui::Ui;
+use mvutils::unsafe_utils::Unsafe;
+use std::mem;
+use std::ops::FromResidual;
+use std::time::SystemTime;
+use glutin::{ContextError, CreationError, ElementState, Event, MouseButton, MouseScrollDelta, VirtualKeyCode, WindowBuilder};
 
 const NANOS_PER_SEC: u64 = 1_000_000_000;
 
@@ -366,8 +364,20 @@ impl Window {
             let (w, h) = monitor.get_dimensions();
             self.info.width = w;
             self.info.height = h;
-        } else {
 
+            self.handle.set_position(0, 0);
+            let (w, h) = monitor.get_dimensions();
+            self.handle.set_inner_size(w, h);
+
+        } else {
+            let (x, y) = self.cached_pos;
+            let (w, h) = self.cached_size;
+            self.info.width = w;
+            self.info.height = h;
+
+            self.handle.set_position(self.cached_pos.0, self.cached_pos.1);
+            let (w, h) = self.cached_size;
+            self.handle.set_inner_size(w, h);
         }
     }
 
